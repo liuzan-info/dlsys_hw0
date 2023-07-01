@@ -20,7 +20,7 @@ def add(x, y):
         Sum of x + y
     """
     ### BEGIN YOUR CODE
-    pass
+    return x + y
     ### END YOUR CODE
 
 
@@ -48,7 +48,17 @@ def parse_mnist(image_filename, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR CODE
-    pass
+    with gzip.open(image_filename, "rb") as f:
+        image = f.read()
+        X = np.frombuffer(image, dtype=np.uint8, offset=16).astype(np.float32)
+        X_max, X_min = np.max(X), np.min(X)
+        X = (X - X_min) / (X_max - X_min)
+        X = np.reshape(X, (-1, 784))
+    
+    with gzip.open(label_filename, "rb") as f:
+        label = f.read()
+        y = np.frombuffer(label, dtype=np.uint8, offset=8)
+    return (X, y)
     ### END YOUR CODE
 
 
@@ -68,7 +78,7 @@ def softmax_loss(Z, y):
         Average softmax loss over the sample.
     """
     ### BEGIN YOUR CODE
-    pass
+    return np.average(np.log(np.sum(np.exp(Z), axis=1)) - Z[np.arange(len(Z)), y])
     ### END YOUR CODE
 
 
@@ -91,7 +101,19 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    start_index = 0
+    while start_index < len(X):
+        batch_size = batch if start_index + batch <= len(X) else len(X) - start_index
+        x_batch = X[start_index: start_index + batch_size]
+        y_batch = y[start_index: start_index + batch_size]
+        logit = np.matmul(x_batch, theta)
+        Z = np.exp(logit) / np.expand_dims(np.sum(np.exp(logit), axis=1), axis=1)
+        # I = np.zeros((len(y), theta.shape[1]))
+        # I[np.arange(len(y)), y] = 1
+        I = np.eye(theta.shape[1])[y_batch]
+        gradient = np.matmul(np.transpose(x_batch), Z - I) / batch_size
+        theta -= gradient * lr
+        start_index += batch_size
     ### END YOUR CODE
 
 
@@ -118,7 +140,25 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    start_index = 0
+    while start_index < len(X):
+        batch_size = batch if start_index + batch <= len(X) else len(X) - start_index
+        x_batch = X[start_index: start_index + batch_size]
+        y_batch = y[start_index: start_index + batch_size]
+        # Z_1 = np.matmul(x_batch, W1) * np.array(np.matmul(x_batch, W1) > 0, dtype=int)
+        Z_1 = np.matmul(x_batch, W1) * (np.matmul(x_batch, W1) > 0)
+        I = np.eye(W2.shape[1])[y_batch]
+        G_2 = np.exp(np.matmul(Z_1, W2)) / np.expand_dims(np.sum(np.exp(np.matmul(Z_1, W2)), axis=1), axis=1) \
+                - I
+        # G_1 = np.array(Z_1 > 0, dtype=int) * np.matmul(G_2, np.transpose(W2))
+        G_1 = (Z_1 > 0) * np.matmul(G_2, np.transpose(W2))
+        gradient_w1 = np.matmul(np.transpose(x_batch), G_1) / batch_size
+        gradient_w2 = np.matmul(np.transpose(Z_1), G_2) / batch_size
+        
+        W1 -= lr * gradient_w1
+        W2 -= lr * gradient_w2
+
+        start_index += batch_size
     ### END YOUR CODE
 
 
